@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+venv/
+env/
+.env
+
+# Ignore raw uploaded images if they are large
+data/raw/*.jpg
+data/raw/*.png
+data/raw/*.jpeg
+
+# We can track cropped and processed if small enough, but usually ignore
+# data/cropped/*.jpg
+# data/processed/*.csv
+
+.streamlit/

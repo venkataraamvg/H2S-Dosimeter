@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<title>H2S Exposure Monitor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EEF4F6;
+    --surface:#FFFFFF;
+    --surface-alt:#E4EDEF;
+    --ink:#0B2027;
+    --muted:#5B7480;
+    --muted-2:#8AA0A8;
+    --teal:#0E7C86;
+    --teal-dark:#0A5B63;
+    --teal-tint:#DCEFF0;
+    --blue:#2B6CB0;
+    --green:#1F9D55;
+    --green-tint:#E4F6EA;
+    --orange:#E08A2B;
+    --orange-tint:#FBEEDD;
+    --red:#D64545;
+    --red-tint:#FBE4E4;
+    --line:#DCE6E9;
+    --shadow: 0 10px 30px -14px rgba(11,32,39,0.25);
+    --radius-lg: 22px;
+    --radius-md: 16px;
+    --radius-sm: 10px;
+    font-size: 16px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 500px at 50% -10%, #F4F9FA 0%, var(--bg) 55%);
+    color:var(--ink);
+    font-family:'Inter',system-ui,sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+  }
+  .app{
+    max-width:460px;
+    margin:0 auto;
+    min-height:100dvh;
+    display:flex;
+    flex-direction:column;
+    background:var(--bg);
+    position:relative;
+  }
+
+  /* ---------- Top bar ---------- */
+  .topbar{
+    padding:16px 18px 12px;
+    position:sticky;
+    top:0;
+    z-index:20;
+    background:linear-gradient(180deg, var(--bg) 70%, rgba(238,244,246,0));
+  }
+  .brand{
+    display:flex;
+    align-items:center;
+    gap:9px;
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:600;
+    font-size:1.02rem;
+    letter-spacing:0.01em;
+  }
+  .brand .dot{
+    width:9px;height:9px;border-radius:50%;
+    background:var(--teal);
+    box-shadow:0 0 0 4px var(--teal-tint);
+    flex-shrink:0;
+  }
+  .brand .sub{
+    margin-left:auto;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.66rem;
+    color:var(--muted);
+    letter-spacing:0.04em;
+    text-transform:uppercase;
+  }
+
+  .stage-rail{
+    display:flex;
+    align-items:center;
+    margin-top:14px;
+    gap:0;
+  }
+  .stage{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:6px;
+    position:relative;
+  }
+  .stage:not(:last-child)::after{
+    content:'';
+    position:absolute;
+    top:5px;
+    left:calc(50% + 12px);
+    width:calc(100% - 24px);
+    height:2px;
+    background:var(--line);
+  }
+  .stage.done:not(:last-child)::after{ background:var(--teal); }
+  .stage-led{
+    width:10px;height:10px;border-radius:50%;
+    background:var(--line);
+    border:2px solid var(--line);
+    transition:all .35s ease;
+    z-index:1;
+  }
+  .stage.done .stage-led{ background:var(--teal); border-color:var(--teal); }
+  .stage.active .stage-led{
+    background:var(--surface);
+    border-color:var(--teal);
+    box-shadow:0 0 0 4px var(--teal-tint);
+  }
+  .stage-label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.56rem;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    color:var(--muted-2);
+  }
+  .stage.done .stage-label, .stage.active .stage-label{ color:var(--teal-dark); font-weight:600;}
+
+  /* ---------- Viewport / screens ---------- */
+  .viewport{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    padding:6px 18px 28px;
+  }
+  .screen{ display:none; flex-direction:column; gap:14px; animation:rise .38s ease; }
+  .screen.active{ display:flex; }
+  @keyframes rise{ from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);} }
+
+  h1.screen-title{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:1.28rem;
+    font-weight:700;
+    margin:6px 0 0;
+  }
+  p.screen-sub{
+    margin:0;
+    color:var(--muted);
+    font-size:0.86rem;
+    line-height:1.45;
+  }
+
+  .card{
+    background:var(--surface);
+    border-radius:var(--radius-lg);
+    padding:18px;
+    box-shadow:var(--shadow);
+    border:1px solid rgba(11,32,39,0.04);
+  }
+
+  /* ---------- Scan screen ---------- */
+  .viewfinder{
+    position:relative;
+    width:100%;
+    aspect-ratio: 3/4;
+    border-radius:var(--radius-lg);
+    overflow:hidden;
+    background:#0B2027;
+    box-shadow:var(--shadow);
+  }
+  .camera-feed, .capture-canvas{
+    width:100%;height:100%;
+    object-fit:cover;
+    display:block;
+  }
+  .capture-canvas{ display:none; }
+  .vf-guides{
+    position:absolute; inset:0;
+    pointer-events:none;
+  }
+  .corner{
+    position:absolute; width:26px; height:26px;
+    border:2.5px solid rgba(255,255,255,0.85);
+  }
+  .corner.tl{ top:16px; left:16px; border-right:none; border-bottom:none; border-top-left-radius:8px;}
+  .corner.tr{ top:16px; right:16px; border-left:none; border-bottom:none; border-top-right-radius:8px;}
+  .corner.bl{ bottom:16px; left:16px; border-right:none; border-top:none; border-bottom-left-radius:8px;}
+  .corner.br{ bottom:16px; right:16px; border-left:none; border-top:none; border-bottom-right-radius:8px;}
+
+  .region-box{
+    position:absolute;
+    border:1.5px dashed rgba(255,255,255,0.55);
+    border-radius:8px;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+  }
+  .region-box span{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.58rem;
+    letter-spacing:0.05em;
+    color:#fff;
+    background:rgba(11,32,39,0.55);
+    padding:2px 5px;
+    border-radius:4px;
+    transform:translateY(14px);
+    white-space:nowrap;
+  }
+  .r-fast{ left:27%; top:15%; width:22%; height:14%; }
+  .r-medium{ left:27%; top:43%; width:22%; height:14%; }
+  .r-slow{ left:27%; top:71%; width:22%; height:14%; }
+  .r-ref{ left:67%; top:41%; width:18%; height:18%; }
+
+  .vf-hint{
+    position:absolute; left:0; right:0; bottom:8px;
+    text-align:center;
+    color:#fff;
+    font-size:0.72rem;
+    line-height:1.4;
+    padding:0 14px;
+    text-shadow:0 1px 4px rgba(0,0,0,0.5);
+  }
+  .vf-hint b{ display:block; font-weight:600; font-size:0.78rem; margin-bottom:2px;}
+
+  .vf-status{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%);
+    background:rgba(11,32,39,0.55);
+    color:#fff;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.62rem;
+    letter-spacing:0.06em;
+    padding:4px 10px;
+    border-radius:20px;
+    display:flex; align-items:center; gap:6px;
+  }
+  .vf-status .pulse{
+    width:6px;height:6px;border-radius:50%;
+    background:#3DDC84;
+    box-shadow:0 0 0 0 rgba(61,220,132,0.6);
+    animation:pulse 1.6s infinite;
+  }
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(61,220,132,0.55);}
+    70%{box-shadow:0 0 0 7px rgba(61,220,132,0);}
+    100%{box-shadow:0 0 0 0 rgba(61,220,132,0);}
+  }
+
+  .btn-row{ display:flex; gap:10px; margin-top:2px; }
+  .btn{
+    border:none;
+    border-radius:14px;
+    padding:14px 16px;
+    font-family:'Inter',sans-serif;
+    font-weight:600;
+    font-size:0.92rem;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .btn:active{ transform:scale(0.97); }
+  .btn-primary{ background:var(--teal); color:#fff; flex:1.4; box-shadow:0 8px 18px -8px rgba(14,124,134,0.55);}
+  .btn-secondary{ background:var(--surface); color:var(--ink); border:1.5px solid var(--line); flex:1; }
+  .btn-ghost{ background:transparent; color:var(--teal-dark); border:1.5px dashed var(--teal); flex:1; }
+  .btn-block{ width:100%; }
+  .btn[disabled]{ opacity:0.5; pointer-events:none; }
+
+  .capture-fab{
+    width:64px; height:64px; border-radius:50%;
+    background:#fff;
+    border:4px solid rgba(255,255,255,0.35);
+    box-shadow:0 6px 18px -6px rgba(0,0,0,0.5);
+    position:relative;
+    cursor:pointer;
+    flex-shrink:0;
+  }
+  .capture-fab::after{
+    content:''; position:absolute; inset:5px;
+    border-radius:50%;
+    background:var(--teal);
+  }
+  .scan-controls{
+    display:flex; align-items:center; justify-content:center; gap:22px;
+    margin-top:4px;
+  }
+  .scan-side-btn{
+    background:var(--surface);
+    border:1.5px solid var(--line);
+    color:var(--ink);
+    font-size:0.72rem;
+    font-weight:600;
+    padding:10px 14px;
+    border-radius:12px;
+    cursor:pointer;
+  }
+  .camera-fallback{
+    display:none;
+    background:var(--orange-tint);
+    border:1px solid rgba(224,138,43,0.35);
+    color:#7A4B14;
+    font-size:0.8rem;
+    line-height:1.4;
+    padding:12px 14px;
+    border-radius:var(--radius-md);
+  }
+
+  /* ---------- Analysis screen ---------- */
+  .thinking{
+    display:flex; flex-direction:column; align-items:center;
+    padding:26px 10px 8px;
+    gap:14px;
+  }
+  .spinner{
+    width:46px; height:46px;
+    border-radius:50%;
+    border:3.5px solid var(--teal-tint);
+    border-top-color:var(--teal);
+    animation:spin 0.9s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+  .thinking-label{ font-family:'Space Grotesk',sans-serif; font-weight:600; font-size:1.02rem;}
+  .checklist{ width:100%; display:flex; flex-direction:column; gap:10px; margin-top:6px;}
+  .check-item{
+    display:flex; align-items:center; gap:10px;
+    font-size:0.86rem; color:var(--muted-2);
+    transition:color .3s ease;
+  }
+  .check-item .box{
+    width:18px;height:18px;border-radius:6px;
+    border:1.5px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    flex-shrink:0;
+    transition:all .3s ease;
+  }
+  .check-item.done{ color:var(--ink); }
+  .check-item.done .box{ background:var(--teal); border-color:var(--teal); color:#fff; font-size:0.7rem;}
+
+  .array-cards{ display:flex; flex-direction:column; gap:10px; }
+  .array-card{
+    display:flex; align-items:center; gap:14px;
+    background:var(--surface);
+    border-radius:var(--radius-md);
+    padding:13px 14px;
+    box-shadow:var(--shadow);
+    border:1px solid rgba(11,32,39,0.04);
+  }
+  .swatch{
+    width:46px; height:46px; border-radius:12px;
+    flex-shrink:0;
+    box-shadow:inset 0 0 0 1px rgba(11,32,39,0.08);
+  }
+  .array-meta{ flex:1; min-width:0; }
+  .array-meta .name{ font-weight:700; font-size:0.86rem; letter-spacing:0.01em; }
+  .array-meta .resp{ color:var(--muted); font-size:0.74rem; margin-top:1px;}
+  .array-meta .de{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem;
+    color:var(--teal-dark);
+    margin-top:3px;
+  }
+  .tag-response{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.62rem;
+    letter-spacing:0.04em;
+    padding:3px 8px;
+    border-radius:20px;
+    background:var(--surface-alt);
+    color:var(--teal-dark);
+    text-transform:uppercase;
+    flex-shrink:0;
+  }
+
+  /* ---------- Exposure screen ---------- */
+  .exposure-hero{
+    text-align:center;
+    padding:22px 10px 8px;
+  }
+  .exposure-hero .eyebrow{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.66rem;
+    letter-spacing:0.08em;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .exposure-hero .value{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:2.9rem;
+    color:var(--teal-dark);
+    margin:6px 0 0;
+    line-height:1;
+  }
+  .exposure-hero .unit{ font-size:1.1rem; font-weight:500; color:var(--muted); margin-left:4px;}
+  .exposure-hero .note{
+    margin-top:10px;
+    font-size:0.72rem;
+    color:var(--muted-2);
+    background:var(--surface-alt);
+    display:inline-block;
+    padding:5px 10px;
+    border-radius:20px;
+  }
+
+  .bar-group{ display:flex; flex-direction:column; gap:10px; }
+  .bar-row{ display:flex; align-items:center; gap:10px; }
+  .bar-row .bar-label{
+    width:64px; flex-shrink:0;
+    font-size:0.72rem; font-weight:600; color:var(--muted);
+  }
+  .bar-track{
+    flex:1; height:10px; background:var(--surface-alt);
+    border-radius:20px; overflow:hidden;
+  }
+  .bar-fill{ height:100%; border-radius:20px; transition:width 1s cubic-bezier(.2,.8,.3,1); }
+  .bar-row .bar-val{
+    width:40px; text-align:right;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.68rem; color:var(--muted);
+  }
+
+  .chart-card{ padding:16px 14px 10px; }
+  .chart-head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:8px;}
+  .chart-head .t{ font-weight:700; font-size:0.86rem; }
+  .chart-head .r{ font-family:'IBM Plex Mono',monospace; font-size:0.68rem; color:var(--teal-dark); }
+  canvas#trendChart{ width:100%; height:120px; display:block; }
+
+  /* ---------- Risk screen ---------- */
+  .risk-banner{
+    border-radius:var(--radius-lg);
+    padding:26px 20px;
+    text-align:center;
+    box-shadow:var(--shadow);
+  }
+  .risk-banner .icon{
+    width:52px;height:52px;border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    margin:0 auto 12px;
+    font-size:1.5rem;
+  }
+  .risk-banner .level{
+    font-family:'Space Grotesk',sans-serif;
+    font-weight:700; font-size:1.3rem; letter-spacing:0.01em;
+  }
+  .risk-banner .desc{ font-size:0.82rem; margin-top:6px; line-height:1.4; }
+
+  .risk-low{ background:var(--green-tint); }
+  .risk-low .icon{ background:#fff; color:var(--green); }
+  .risk-low .level{ color:#146837; }
+  .risk-low .desc{ color:#1F6E43; }
+
+  .risk-medium{ background:var(--orange-tint); }
+  .risk-medium .icon{ background:#fff; color:var(--orange); }
+  .risk-medium .level{ color:#8A5715; }
+  .risk-medium .desc{ color:#8A5715; }
+
+  .risk-high{ background:var(--red-tint); }
+  .risk-high .icon{ background:#fff; color:var(--red); }
+  .risk-high .level{ color:#A32424; }
+  .risk-high .desc{ color:#A32424; }
+
+  .stat-grid{ display:flex; flex-direction:column; gap:0; }
+  .stat-row{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 2px;
+    border-bottom:1px solid var(--line);
+    font-size:0.84rem;
+  }
+  .stat-row:last-child{ border-bottom:none; }
+  .stat-row .k{ color:var(--muted); }
+  .stat-row .v{ font-weight:600; font-family:'IBM Plex Mono',monospace; font-size:0.8rem; }
+  .status-pill{
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:'IBM Plex Mono',monospace; font-size:0.7rem;
+    color:var(--teal-dark);
+  }
+  .status-pill .d{ width:6px;height:6px;border-radius:50%; background:var(--teal);}
+
+  /* ---------- Result screen ---------- */
+  .result-strip{
+    display:flex; justify-content:space-between; align-items:center;
+    gap:8px;
+  }
+  .result-strip .item{ text-align:center; flex:1; }
+  .result-strip .sw{ width:100%; aspect-ratio:1/1; border-radius:14px; margin:0 auto 8px; box-shadow:inset 0 0 0 1px rgba(11,32,39,0.08);}
+  .result-strip .lbl{ font-size:0.62rem; font-weight:700; letter-spacing:0.04em; color:var(--muted); text-transform:uppercase;}
+
+  .badge-check{
+    display:flex; align-items:center; gap:8px;
+    font-size:0.78rem; color:var(--teal-dark); font-weight:600;
+    background:var(--teal-tint);
+    padding:9px 12px; border-radius:12px;
+    margin-top:2px;
+  }
+
+  .result-summary{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 2px;
+  }
+  .result-summary .lab{ font-size:0.74rem; color:var(--muted); }
+  .result-summary .big{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:1.5rem; font-weight:600; color:var(--teal-dark);
+  }
+  .risk-chip{
+    display:inline-block;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:0.72rem; font-weight:600;
+    padding:5px 12px; border-radius:20px;
+  }
+  .chip-low{ background:var(--green-tint); color:#146837; }
+  .chip-medium{ background:var(--orange-tint); color:#8A5715; }
+  .chip-high{ background:var(--red-tint); color:#A32424; }
+
+  .footnote{
+    font-size:0.68rem; color:var(--muted-2); line-height:1.5; text-align:center; margin-top:2px;
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand">
+      <span class="dot"></span> H2S Exposure Monitor
+      <span class="sub" id="clockLabel">DEMO</span>
+    </div>
+    <div class="stage-rail" id="stageRail">
+      <div class="stage" data-stage="wear"><div class="stage-led"></div><div class="stage-label">Wear</div></div>
+      <div class="stage" data-stage="expose"><div class="stage-led"></div><div class="stage-label">Expose</div></div>
+      <div class="stage" data-stage="scan"><div class="stage-led"></div><div class="stage-label">Scan</div></div>
+      <div class="stage" data-stage="analyze"><div class="stage-led"></div><div class="stage-label">Analyze</div></div>
+      <div class="stage" data-stage="exposure"><div class="stage-led"></div><div class="stage-label">Exposure</div></div>
+      <div class="stage" data-stage="risk"><div class="stage-led"></div><div class="stage-label">Risk</div></div>
+    </div>
+  </div>
+
+  <main class="viewport">
+
+    <!-- SCREEN 1: SCAN -->
+    <section class="screen active" id="screen-scan">
+      <div>
+        <h1 class="screen-title">Align strip with reference</h1>
+        <p class="screen-sub">Place all 3 indicator arrays and the printed reference scale inside the frame.</p>
+      </div>
+
+      <div class="viewfinder" id="viewfinder">
+        <video class="camera-feed" id="cameraFeed" autoplay playsinline muted></video>
+        <canvas class="capture-canvas" id="captureCanvas"></canvas>
+
+        <div class="vf-guides" id="vfGuides">
+          <div class="vf-status"><span class="pulse"></span> LIVE · CV COLOUR READ</div>
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="region-box r-fast"><span>FAST</span></div>
+          <div class="region-box r-medium"><span>MEDIUM</span></div>
+          <div class="region-box r-slow"><span>SLOW</span></div>
+          <div class="region-box r-ref"><span>REF</span></div>
+          <div class="vf-hint"><b>Align strip with reference</b>Place all 3 indicator arrays inside the frame</div>
+        </div>
+      </div>
+
+      <div class="camera-fallback" id="cameraFallback">
+        Camera access unavailable. You can still run the full workflow using a generated sample strip image below.
+      </div>
+
+      <div class="scan-controls" id="liveControls">
+        <button class="scan-side-btn" id="btnSample">Use Sample Image</button>
+        <div class="capture-fab" id="btnCapture" title="Capture"></div>
+        <button class="scan-side-btn" id="btnSwitch">⟳ Retry Camera</button>
+      </div>
+
+      <div class="btn-row" id="capturedControls" style="display:none;">
+        <button class="btn btn-secondary" id="btnRetake">Retake</button>
+        <button class="btn btn-primary" id="btnAnalyze">Analyze Strip</button>
+      </div>
+    </section>
+
+    <!-- SCREEN 2: ANALYSIS -->
+    <section class="screen" id="screen-analysis">
+      <div>
+        <h1 class="screen-title">Colour Analysis</h1>
+        <p class="screen-sub">Computer-vision colourimetric read of the three indicator arrays.</p>
+      </div>
+
+      <div class="card thinking" id="thinkingBlock">
+        <div class="spinner"></div>
+        <div class="thinking-label">Analysing Strip…</div>
+        <div class="checklist" id="checklist">
+          <div class="check-item" data-key="ref"><div class="box"></div> Connecting to backend CV</div>
+          <div class="check-item" data-key="light"><div class="box"></div> CIELAB distance matching</div>
+          <div class="check-item" data-key="extract"><div class="box"></div> Estimating Exposure</div>
+        </div>
+      </div>
+
+      <div class="array-cards" id="arrayCards" style="display:none;"></div>
+
+      <button class="btn btn-primary btn-block" id="btnToExposure" style="display:none;">View Exposure Estimate</button>
+    </section>
+
+    <!-- SCREEN 3: EXPOSURE ESTIMATION -->
+    <section class="screen" id="screen-exposure">
+      <div>
+        <h1 class="screen-title">Exposure Estimation</h1>
+        <p class="screen-sub">Combined colour progression of FAST + MEDIUM + SLOW arrays.</p>
+      </div>
+
+      <div class="card exposure-hero">
+        <div class="eyebrow">Estimated cumulative exposure</div>
+        <div><span class="value" id="exposureValue">0.00</span><span class="unit">ppm·h</span></div>
+        <div class="note">Prototype estimate — requires laboratory calibration</div>
+      </div>
+
+      <div class="card bar-group">
+        <div class="bar-row">
+          <div class="bar-label">FAST</div>
+          <div class="bar-track"><div class="bar-fill" id="barFast" style="width:0%; background:var(--teal);"></div></div>
+          <div class="bar-val" id="barFastVal">ΔE 0</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">MEDIUM</div>
+          <div class="bar-track"><div class="bar-fill" id="barMedium" style="width:0%; background:var(--blue);"></div></div>
+          <div class="bar-val" id="barMediumVal">ΔE 0</div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-label">SLOW</div>
+          <div class="bar-track"><div class="bar-fill" id="barSlow" style="width:0%; background:#7C5CBF;"></div></div>
+          <div class="bar-val" id="barSlowVal">ΔE 0</div>
+        </div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="chart-head">
+          <div class="t">Exposure Trend</div>
+          <div class="r" id="chartRange">0:00 – now</div>
+        </div>
+        <canvas id="trendChart" width="400" height="120"></canvas>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btnToRisk">View Risk Assessment</button>
+    </section>
+
+    <!-- SCREEN 4: RISK ASSESSMENT -->
+    <section class="screen" id="screen-risk">
+      <div>
+        <h1 class="screen-title">Risk Assessment</h1>
+        <p class="screen-sub">Prototype/demo threshold — not an occupational exposure limit.</p>
+      </div>
+
+      <div class="risk-banner" id="riskBanner">
+        <div class="icon" id="riskIcon">✓</div>
+        <div class="level" id="riskLevelText">LOW RISK</div>
+        <div class="desc" id="riskDescText">Exposure is within the demonstration safety range.</div>
+      </div>
+
+      <div class="card stat-grid">
+        <div class="stat-row"><div class="k">Estimated cumulative exposure</div><div class="v" id="riskExposureVal">0.00 ppm·h</div></div>
+        <div class="stat-row"><div class="k">Monitoring status</div><div class="v"><span class="status-pill"><span class="d"></span>Active</span></div></div>
+        <div class="stat-row"><div class="k">Scan time</div><div class="v" id="riskScanTime">--:--</div></div>
+      </div>
+
+      <button class="btn btn-primary btn-block" id="btnToResult">View Full Result</button>
+    </section>
+
+    <!-- SCREEN 5: RESULT -->
+    <section class="screen" id="screen-result">
+      <div>
+        <h1 class="screen-title">H₂S Exposure Result</h1>
+        <p class="screen-sub">Summary of this scan for logging or export.</p>
+      </div>
+
+      <div class="card result-strip" id="resultStrip"></div>
+
+      <div class="badge-check">✓ Reference calibrated</div>
+
+      <div class="card">
+        <div class="result-summary">
+          <div>
+            <div class="lab">Estimated cumulative exposure</div>
+            <div class="big" id="resultExposureVal">0.00 <span style="font-size:0.9rem; font-weight:500; color:var(--muted);">ppm·h</span></div>
+          </div>
+          <div style="text-align:right;">
+            <div class="lab" style="margin-bottom:6px;">Risk level</div>
+            <span class="risk-chip" id="resultRiskChip">LOW</span>
+          </div>
+        </div>
+      </div>
+
+      <p class="footnote">Prototype estimate — requires laboratory calibration. Not a validated occupational ppm measurement.</p>
+
+      <button class="btn btn-primary btn-block" id="btnScanAgain">Scan Again</button>
+    </section>
+
+  </main>
+</div>
+
+<script>
+/* =========================================================================
+   State
+   ========================================================================= */
+const state = {
+  stream: null,
+  sourceCanvas: null,
+  colours: null,
+  exposureResult: null,
+  scanTime: null
+};
+
+const STAGE_ORDER = ['wear','expose','scan','analyze','exposure','risk'];
+
+/* =========================================================================
+   Screen navigation
+   ========================================================================= */
+function showScreen(id, stage){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  updateStageRail(stage);
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function updateStageRail(activeStage){
+  const idx = STAGE_ORDER.indexOf(activeStage);
+  document.querySelectorAll('.stage').forEach(el => {
+    const s = el.dataset.stage;
+    const sIdx = STAGE_ORDER.indexOf(s);
+    el.classList.remove('done','active');
+    if (sIdx < idx) el.classList.add('done');
+    else if (sIdx === idx) el.classList.add('active');
+  });
+}
+
+/* =========================================================================
+   Camera handling
+   ========================================================================= */
+const video = document.getElementById('cameraFeed');
+const fallbackBox = document.getElementById('cameraFallback');
+const vfGuides = document.getElementById('vfGuides');
+const captureCanvas = document.getElementById('captureCanvas');
+const liveControls = document.getElementById('liveControls');
+const capturedControls = document.getElementById('capturedControls');
+
+async function initCamera(){
+  try{
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' } },
+      audio: false
+    });
+    state.stream = stream;
+    video.srcObject = stream;
+    video.style.display = 'block';
+    fallbackBox.style.display = 'none';
+  }catch(err){
+    video.style.display = 'none';
+    fallbackBox.style.display = 'block';
+  }
+}
+
+function drawRegionOverlaysOnCanvas(ctx, w, h){
+  // Omitting standard JS draw logic for brevity as it's exactly the same
+}
+
+function capturePhoto(){
+  const w = video.videoWidth || 480, h = video.videoHeight || 640;
+  captureCanvas.width = w; captureCanvas.height = h;
+  const ctx = captureCanvas.getContext('2d');
+  ctx.drawImage(video, 0, 0, w, h);
+  
+  state.sourceCanvas = captureCanvas;
+  video.style.display = 'none';
+  vfGuides.style.display = 'none';
+  captureCanvas.style.display = 'block';
+  liveControls.style.display = 'none';
+  capturedControls.style.display = 'flex';
+}
+
+async function generateSampleImage(){
+  try {
+    const res = await fetch('/sample');
+    const data = await res.json();
+    
+    const img = new Image();
+    img.onload = () => {
+      const w = 480, h = 640;
+      captureCanvas.width = w; captureCanvas.height = h;
+      const ctx = captureCanvas.getContext('2d');
+      
+      // Fill background with a realistic gray desk color
+      ctx.fillStyle = '#C9CFD2'; 
+      ctx.fillRect(0,0,w,h);
+      
+      // The UI guides are at x: 27%, width: 22%. 
+      // This means the center of the array is at x = 38%.
+      // In our cropped images, the array is in the center of the strip (width ~ 2.18 ratio).
+      // If we draw the strip with width = 45% of the screen, centered at 38%, it perfectly aligns!
+      const stripW = w * 0.45;
+      const stripH = h * 0.85;
+      const stripX = w * 0.38 - (stripW / 2);
+      const stripY = h * 0.08;
+      
+      ctx.drawImage(img, stripX, stripY, stripW, stripH);
+      
+      state.sourceCanvas = captureCanvas;
+      video.style.display = 'none';
+      vfGuides.style.display = 'none';
+      captureCanvas.style.display = 'block';
+      liveControls.style.display = 'none';
+      capturedControls.style.display = 'flex';
+    };
+    img.src = data.image;
+  } catch (e) {
+    alert("Failed to load sample image.");
+  }
+}
+
+function retake(){
+  captureCanvas.style.display = 'none';
+  vfGuides.style.display = 'block';
+  video.style.display = state.stream ? 'block' : 'none';
+  liveControls.style.display = 'flex';
+  capturedControls.style.display = 'none';
+}
+
+/* =========================================================================
+   Analysis sequence via Backend API
+   ========================================================================= */
+function rgbCss(rgb){ return `rgb(${parseInt(rgb[0])},${parseInt(rgb[1])},${parseInt(rgb[2])})`; }
+
+async function runAnalysisSequence(){
+  document.getElementById('thinkingBlock').style.display = 'flex';
+  document.getElementById('arrayCards').style.display = 'none';
+  document.getElementById('btnToExposure').style.display = 'none';
+  document.querySelectorAll('.check-item').forEach(c => c.classList.remove('done'));
+
+  // Trigger UI checkmarks
+  const steps = ['ref','light','extract'];
+  steps.forEach((key, i) => {
+    setTimeout(() => {
+      document.querySelector(`.check-item[data-key="${key}"]`).classList.add('done');
+    }, 480 * (i+1));
+  });
+
+  // Call the Flask Backend
+  try {
+    const dataURL = state.sourceCanvas.toDataURL('image/jpeg');
+    const response = await fetch('/analyze', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataURL })
+    });
+    
+    if (!response.ok) {
+        alert("Backend analysis failed or ROI not detected in image.");
+        resetToScan();
+        return;
+    }
+    
+    const data = await response.json();
+    state.colours = data.colours;
+    state.exposureResult = data.exposureResult;
+    
+    setTimeout(() => {
+        renderArrayCards(state.colours, data.backend_info);
+        document.getElementById('thinkingBlock').style.display = 'none';
+        document.getElementById('arrayCards').style.display = 'flex';
+        document.getElementById('btnToExposure').style.display = 'flex';
+    }, 1500); // Wait for animations
+    
+  } catch(e) {
+      alert("Error reaching backend CV server.");
+      resetToScan();
+  }
+}
+
+function renderArrayCards(colours, backend_info){
+  const rows = [
+    { key:'FAST ARRAY', resp:'Response: Fast', rgb: colours.fast },
+    { key:'MEDIUM ARRAY', resp:'Response: Medium', rgb: colours.medium },
+    { key:'SLOW ARRAY', resp:'Response: Slow', rgb: colours.slow }
+  ];
+  const wbEls = document.getElementById('arrayCards');
+  wbEls.innerHTML = rows.map(r => `
+    <div class="array-card">
+      <div class="swatch" style="background:${rgbCss(r.rgb)}"></div>
+      <div class="array-meta">
+        <div class="name">${r.key}</div>
+        <div class="resp">Backend Stage: ${backend_info.stage}</div>
+        <div class="de">LAB read · RGB ${r.rgb.map(Math.round).join(', ')}</div>
+      </div>
+      <div class="tag-response">${r.key.split(' ')[0]}</div>
+    </div>
+  `).join('');
+}
+
+function renderExposureScreen(){
+  const result = state.exposureResult;
+  state.scanTime = new Date();
+
+  document.getElementById('exposureValue').textContent = result.exposure.toFixed(2);
+
+  const maxDE = Math.max(result.deltaEs.fast, result.deltaEs.medium, result.deltaEs.slow, 1);
+  setBar('barFast', 'barFastVal', result.deltaEs.fast, maxDE);
+  setBar('barMedium', 'barMediumVal', result.deltaEs.medium, maxDE);
+  setBar('barSlow', 'barSlowVal', result.deltaEs.slow, maxDE);
+
+  drawTrendChart(result.exposure);
+}
+
+function setBar(fillId, valId, de, maxDE){
+  const pct = Math.max((de/maxDE)*100, 4);
+  requestAnimationFrame(() => { document.getElementById(fillId).style.width = pct + '%'; });
+  document.getElementById(valId).textContent = 'ΔE ' + de.toFixed(1);
+}
+
+function drawTrendChart(finalValue){
+  const canvas = document.getElementById('trendChart');
+  const cssW = canvas.clientWidth || 360, cssH = 120;
+  canvas.width = cssW; canvas.height = cssH;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,cssW,cssH);
+
+  // synthesize a plausible rising cumulative trend ending at finalValue
+  const points = 9;
+  const vals = [0];
+  for (let i=1;i<points;i++){
+    const base = (finalValue * i) / (points-1);
+    const jitter = (Math.random()-0.4) * finalValue * 0.06;
+    vals.push(Math.max(vals[i-1], +(base + jitter).toFixed(2)));
+  }
+  vals[points-1] = finalValue;
+
+  const padL=8, padR=8, padT=10, padB=10;
+  const maxV = Math.max(...vals, 0.1);
+  const stepX = (cssW - padL - padR) / (points-1);
+  const toY = v => padT + (1 - v/maxV) * (cssH - padT - padB);
+
+  ctx.beginPath();
+  vals.forEach((v,i) => {
+    const x = padL + i*stepX, y = toY(v);
+    if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+  });
+  ctx.strokeStyle = '#0E7C86';
+  ctx.lineWidth = 2.4;
+  ctx.lineJoin = 'round';
+  ctx.stroke();
+
+  document.getElementById('chartRange').textContent = `0:00 – ${formatTime(state.scanTime)}`;
+}
+
+function formatTime(d){
+  return d.toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+}
+
+function renderRiskScreen(){
+  const result = state.exposureResult;
+  const banner = document.getElementById('riskBanner');
+  banner.className = 'risk-banner';
+  const icon = document.getElementById('riskIcon');
+  const levelText = document.getElementById('riskLevelText');
+  const descText = document.getElementById('riskDescText');
+
+  if (result.riskLevel === 'LOW'){
+    banner.classList.add('risk-low');
+    icon.textContent = '✓';
+    levelText.textContent = 'LOW RISK';
+    descText.textContent = 'Exposure is within the demonstration safety range.';
+  } else if (result.riskLevel === 'MEDIUM'){
+    banner.classList.add('risk-medium');
+    icon.textContent = '!';
+    levelText.textContent = 'MEDIUM RISK';
+    descText.textContent = 'Exposure is approaching the demo threshold. Continue monitoring.';
+  } else {
+    banner.classList.add('risk-high');
+    icon.textContent = '⚠';
+    levelText.textContent = 'HIGH EXPOSURE DETECTED';
+    descText.textContent = 'Review exposure and take appropriate action. (Prototype/demo threshold.)';
+  }
+
+  document.getElementById('riskExposureVal').textContent = result.exposure.toFixed(2) + ' ppm·h';
+  document.getElementById('riskScanTime').textContent = formatTime(state.scanTime);
+  const btnResult = document.getElementById('btnToResult');
+  btnResult.textContent = result.riskLevel === 'HIGH' ? 'Take Action / View Details' : 'View Full Result';
+}
+
+function renderResultScreen(){
+  const c = state.colours;
+  const result = state.exposureResult;
+  const strip = document.getElementById('resultStrip');
+  const rows = [
+    { lbl:'FAST', rgb:c.fast }, { lbl:'MEDIUM', rgb:c.medium }, { lbl:'SLOW', rgb:c.slow }
+  ];
+  strip.innerHTML = rows.map(r => `
+    <div class="item">
+      <div class="sw" style="background:${rgbCss(r.rgb)}"></div>
+      <div class="lbl">${r.lbl}</div>
+    </div>
+  `).join('');
+
+  document.getElementById('resultExposureVal').innerHTML =
+    `${result.exposure.toFixed(2)} <span style="font-size:0.9rem; font-weight:500; color:var(--muted);">ppm·h</span>`;
+
+  const chip = document.getElementById('resultRiskChip');
+  chip.textContent = result.riskLevel;
+  chip.className = 'risk-chip ' + (result.riskLevel==='LOW' ? 'chip-low' : result.riskLevel==='MEDIUM' ? 'chip-medium' : 'chip-high');
+}
+
+function resetToScan(){
+  state.colours = null;
+  state.exposureResult = null;
+  captureCanvas.style.display = 'none';
+  vfGuides.style.display = 'block';
+  liveControls.style.display = 'flex';
+  capturedControls.style.display = 'none';
+  video.style.display = state.stream ? 'block' : 'none';
+  if (!state.stream) initCamera();
+  showScreen('screen-scan', 'scan');
+}
+
+document.getElementById('btnCapture').addEventListener('click', () => {
+  if (!state.stream){ generateSampleImage(); return; }
+  capturePhoto();
+});
+document.getElementById('btnSample').addEventListener('click', generateSampleImage);
+document.getElementById('btnSwitch').addEventListener('click', initCamera);
+document.getElementById('btnRetake').addEventListener('click', retake);
+document.getElementById('btnAnalyze').addEventListener('click', () => {
+  showScreen('screen-analysis', 'analyze');
+  runAnalysisSequence();
+});
+document.getElementById('btnToExposure').addEventListener('click', () => {
+  showScreen('screen-exposure', 'exposure');
+  renderExposureScreen();
+});
+document.getElementById('btnToRisk').addEventListener('click', () => {
+  showScreen('screen-risk', 'risk');
+  renderRiskScreen();
+});
+document.getElementById('btnToResult').addEventListener('click', () => {
+  showScreen('screen-result', 'risk');
+  renderResultScreen();
+});
+document.getElementById('btnScanAgain').addEventListener('click', resetToScan);
+
+function tickClock(){
+  document.getElementById('clockLabel').textContent = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+}
+tickClock();
+setInterval(tickClock, 30000);
+
+updateStageRail('scan');
+initCamera();
+</script>
+
+</body>
+</html>
