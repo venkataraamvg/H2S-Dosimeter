@@ -4,8 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <title>H2S Exposure Monitor</title>
+<link rel="manifest" href="/static/manifest.json">
+<meta name="theme-color" content="#0E7C86">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script src="/static/reference_data.js"></script>
+<script src="/static/cv.js"></script>
 <style>
   :root{
     --bg:#EEF4F6;
@@ -213,7 +220,8 @@
   .r-fast{ left:27%; top:15%; width:22%; height:14%; }
   .r-medium{ left:27%; top:43%; width:22%; height:14%; }
   .r-slow{ left:27%; top:71%; width:22%; height:14%; }
-  .r-ref{ left:67%; top:41%; width:18%; height:18%; }
+  .r-ref{ left:67%; top:41%; width:18%; height:18%; border-color: #A855F7; }
+  .r-ref span { background: #A855F7; }
 
   .vf-hint{
     position:absolute; left:0; right:0; bottom:8px;
@@ -701,6 +709,14 @@
 </div>
 
 <script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/static/sw.js').then(reg => {
+      console.log('SW registered!', reg);
+    }).catch(err => console.log('SW registration failed', err));
+  });
+}
+
 /* =========================================================================
    State
    ========================================================================= */
@@ -845,22 +861,9 @@ async function runAnalysisSequence(){
     }, 480 * (i+1));
   });
 
-  // Call the Flask Backend
+  // Run 100% Client-Side CV
   try {
-    const dataURL = state.sourceCanvas.toDataURL('image/jpeg');
-    const response = await fetch('/analyze', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: dataURL })
-    });
-    
-    if (!response.ok) {
-        alert("Backend analysis failed or ROI not detected in image.");
-        resetToScan();
-        return;
-    }
-    
-    const data = await response.json();
+    const data = processClientSideCV(state.sourceCanvas);
     state.colours = data.colours;
     state.exposureResult = data.exposureResult;
     
@@ -872,7 +875,8 @@ async function runAnalysisSequence(){
     }, 1500); // Wait for animations
     
   } catch(e) {
-      alert("Error reaching backend CV server.");
+      console.error(e);
+      alert("Error processing image locally.");
       resetToScan();
   }
 }

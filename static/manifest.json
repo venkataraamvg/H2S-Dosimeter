@@ -1,0 +1,21 @@
+{
+  "name": "H2S Exposure Monitor",
+  "short_name": "H2S Monitor",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#EEF4F6",
+  "theme_color": "#0E7C86",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/static/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/static/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
