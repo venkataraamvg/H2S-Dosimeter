@@ -4,7 +4,7 @@
 This project is a computer-vision proof-of-concept for a low-cost wearable passive H₂S (hydrogen sulfide) exposure dosimeter. The application analyzes a photograph of a Cu-PAN sensing strip, extracts color features, and matches them against a reference dataset to estimate the reaction stage.............
 
 ## 2. Scientific Limitation
-**CRITICAL:** This prototype uses provisional calibration labels for software demonstration ONLY. It is NOT a validated H₂S detector and must not be used for occupational safety decisions. The actual H₂S ppm values, exposure durations, and cumulative dose are NOT yet experimentally validated.
+**CRITICAL:** This prototype uses provisional calibration labels for software demonstration ONLY. It is NOT a validated H₂S detector and must not be used for occupational safety decisions. The actual H₂S ppm values, exposure durations, and cumulative dose are NOT yet experimentally validated.....................
 
 ## 3. Installation
 1. Ensure Python 3.8+ is installed.
