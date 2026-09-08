@@ -1,7 +1,7 @@
 # H₂S Exposure Dosimeter - Software Prototype
 
 ## 1. Project Overview
-This project is a computer-vision proof-of-concept for a low-cost wearable passive H₂S (hydrogen sulfide) exposure dosimeter. The application analyzes a photograph of a Cu-PAN sensing strip, extracts color features, and matches them against a reference dataset to estimate the reaction stage.
+This project is a computer-vision proof-of-concept for a low-cost wearable passive H₂S (hydrogen sulfide) exposure dosimeter. The application analyzes a photograph of a Cu-PAN sensing strip, extracts color features, and matches them against a reference dataset to estimate the reaction stage.............
 
 ## 2. Scientific Limitation
 **CRITICAL:** This prototype uses provisional calibration labels for software demonstration ONLY. It is NOT a validated H₂S detector and must not be used for occupational safety decisions. The actual H₂S ppm values, exposure durations, and cumulative dose are NOT yet experimentally validated.
@@ -81,7 +81,7 @@ This Python/Streamlit prototype establishes the logic. The next phase involves p
 This prototype uses provisional calibration labels for software demonstration. It is not a validated H₂S detector and must not be used for occupational safety decisions.
 
 ---
-### HOW TO DEMONSTRATE
+### HOW TO DEMONSTRATE:
 1. Start Streamlit (`streamlit run app.py`).
 2. Upload one of the reference strip images (e.g., from `data/cropped/`).
 3. Show the detected ROI.
